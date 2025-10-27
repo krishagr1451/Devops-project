@@ -13,12 +13,14 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 app.permanent_session_lifetime = timedelta(minutes=10)
 
+
 # ==============================
 # DATABASE CONNECTION UTILITY (Aiven MySQL over TLS)
 # ==============================
 class Database:
     @staticmethod
     def create_connection():
+        ca_path = os.path.join(os.getcwd(), os.getenv("DB_SSL_CA"))
         timeout = 10
         """Establishes a TLS-verified connection to the Aiven MySQL database (PyMySQL)."""
         return pymysql.connect(
@@ -32,6 +34,7 @@ class Database:
             port=int(os.getenv("DB_PORT")),
             user=os.getenv("DB_USER"),
             write_timeout=timeout,
+            ssl={"ca": ca_path}
             )
 
 # ==============================
@@ -769,3 +772,4 @@ def shutdown_scheduler(exception=None):
 if __name__ == '__main__':
     # PyMySQL installs as MySQLdb-compatible only if imported, but here we directly use pymysql.
     app.run(debug=True)
+

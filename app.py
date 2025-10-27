@@ -442,13 +442,24 @@ class Guest(User):
         return property_id
 
 class Scheduler:
-    def __init__(self):
-        self.scheduler = BackgroundScheduler()
+    @staticmethod
+    def updateRoomAvailability():
+        conn = Database.create_connection()
+        cursor = conn.cursor()
+        current_time = datetime.now()
         try:
-            self.scheduler.start()
-        except Exception as e:
-            print(f"Failed to start the scheduler: {e}")
-        self.scheduler.add_job(func=self.updateRoomAvailability, trigger="interval", hours=1)
+            cursor.execute("SELECT room_id FROM BOOKINGS WHERE check_out_date <= %s", (current_time.date(),))
+            expired_bookings = cursor.fetchall()
+            for booking in expired_bookings:
+                cursor.execute("UPDATE ROOMS SET availability_status = 1 WHERE room_id = %s", (booking['room_id'],))
+            if expired_bookings:
+                conn.commit()
+                print(f"Updated availability for {len(expired_bookings)} room(s).")
+        except Exception as err:
+            conn.rollback()
+            print(f"Error updating room availability: {err}")
+        finally:
+            conn.close()
 
     @staticmethod
     def updateRoomAvailability():
@@ -476,8 +487,6 @@ class Scheduler:
         except Exception:
             pass
 
-# Initialize Scheduler
-scheduler_instance = Scheduler()
 
 # ==============================
 # ROUTES USING OOP
@@ -772,4 +781,5 @@ def shutdown_scheduler(exception=None):
 if __name__ == '__main__':
     # PyMySQL installs as MySQLdb-compatible only if imported, but here we directly use pymysql.
     app.run(debug=True)
+
 

@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import pymysql
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta, datetime
-from apscheduler.schedulers.background import BackgroundScheduler
 
 # Load environment variables
 load_dotenv()
@@ -480,14 +479,6 @@ class Scheduler:
         finally:
             conn.close()
 
-    def shutdown(self):
-        try:
-            if self.scheduler.running:
-                self.scheduler.shutdown()
-        except Exception:
-            pass
-
-
 # ==============================
 # ROUTES USING OOP
 # ==============================
@@ -774,12 +765,9 @@ def edit_room(room_id):
 def logout():
     return User.logout()
 
-@app.teardown_appcontext
-def shutdown_scheduler(exception=None):
-    scheduler_instance.shutdown()
-
 if __name__ == '__main__':
     # PyMySQL installs as MySQLdb-compatible only if imported, but here we directly use pymysql.
     app.run(debug=True)
+
 
 

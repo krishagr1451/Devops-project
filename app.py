@@ -21,7 +21,6 @@ class Database:
     def create_connection():
         ca_path = os.path.join(os.getcwd(), os.getenv("DB_SSL_CA"))
         timeout = 10
-        """Establishes a TLS-verified connection to the Aiven MySQL database (PyMySQL)."""
         return pymysql.connect(
             charset="utf8mb4",
             connect_timeout=timeout,
@@ -34,7 +33,8 @@ class Database:
             user=os.getenv("DB_USER"),
             write_timeout=timeout,
             ssl={"ca": ca_path}
-            )
+        )
+
 
 # ==============================
 # CORE CLASSES FROM CLASS DIAGRAM
@@ -90,6 +90,7 @@ class User:
         session.clear()
         flash("You have been logged out.")
         return redirect(url_for('home'))
+
 
 class Admin(User):
     def __init__(self, user_id, name, email, role):
@@ -460,25 +461,6 @@ class Scheduler:
         finally:
             conn.close()
 
-    @staticmethod
-    def updateRoomAvailability():
-        conn = Database.create_connection()
-        cursor = conn.cursor()
-        current_time = datetime.now()
-        try:
-            cursor.execute("SELECT room_id FROM BOOKINGS WHERE check_out_date <= %s", (current_time.date(),))
-            expired_bookings = cursor.fetchall()
-            for booking in expired_bookings:
-                cursor.execute("UPDATE ROOMS SET availability_status = 1 WHERE room_id = %s", (booking['room_id'],))
-            if expired_bookings:
-                conn.commit()
-                print(f"Updated availability for {len(expired_bookings)} room(s).")
-        except Exception as err:
-            conn.rollback()
-            print(f"Error updating room availability: {err}")
-        finally:
-            conn.close()
-
 # ==============================
 # ROUTES USING OOP
 # ==============================
@@ -766,8 +748,4 @@ def logout():
     return User.logout()
 
 if __name__ == '__main__':
-    # PyMySQL installs as MySQLdb-compatible only if imported, but here we directly use pymysql.
     app.run(debug=True)
-
-
-

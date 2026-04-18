@@ -1,0 +1,87 @@
+---
+- name: Configure StayNGo EC2 Instance
+  hosts: ec2
+  become: yes
+
+  tasks:
+    - name: Ensure apt cache is updated
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install Docker and Git
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+          - git
+          - curl
+          - htop
+        state: present
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Ensure Docker is running
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Check if swap exists
+      stat:
+        path: /swapfile
+      register: swapfile
+
+    - name: Create 2GB Swap file
+      command: fallocate -l 2G /swapfile
+      when: not swapfile.stat.exists
+
+    - name: Secure swap
+      file:
+        path: /swapfile
+        mode: '0600'
+
+    - name: Enable swap
+      shell: mkswap /swapfile && swapon /swapfile
+      when: not swapfile.stat.exists
+
+    - name: Persist swap in fstab
+      lineinfile:
+        path: /etc/fstab
+        line: '/swapfile none swap sw 0 0'
+        state: present
+
+    - name: Set vm.swappiness to 10
+      sysctl:
+        name: vm.swappiness
+        value: '10'
+        state: present
+        reload: yes
+
+    # SonarQube ElasticSearch Kernel requirement
+    - name: Set vm.max_map_count for SonarQube
+      sysctl:
+        name: vm.max_map_count
+        value: '262144'
+        state: present
+        reload: yes
+
+    - name: Create app directory
+      file:
+        path: /home/ubuntu/stayngo
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    # Copy docker-compose.prod.yml so the pipeline can trigger it
+    - name: Copy docker-compose.prod.yml
+      copy:
+        src: ../docker-compose.prod.yml
+        dest: /home/ubuntu/stayngo/docker-compose.yml
+        owner: ubuntu
+        mode: '0644'

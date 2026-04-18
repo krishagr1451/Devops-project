@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "instance_type" {
   description = "The EC2 instance type."
   type        = string
-  default     = "t2.medium" # t2.medium is generally the minimum for running a single-node k8s cluster (like Minikube or K3s)
+  default     = "m7i-flex.large" # Changed to t2.micro to comply with AWS Free Tier
 }
 
 variable "ami_id" {

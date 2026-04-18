@@ -67,10 +67,16 @@ resource "aws_security_group" "stayngo_sg" {
   }
 }
 
+resource "aws_key_pair" "stayngo_key" {
+  key_name   = "stayngo-deployer-key"
+  public_key = file("~/.ssh/id_rsa.pub")
+}
+
 # Provision the EC2 Instance (VM) where Docker, k3s/minikube, and Jenkins will run
 resource "aws_instance" "stayngo_node" {
   ami           = var.ami_id
   instance_type = var.instance_type
+  key_name      = aws_key_pair.stayngo_key.key_name
   
   vpc_security_group_ids = [aws_security_group.stayngo_sg.id]
 

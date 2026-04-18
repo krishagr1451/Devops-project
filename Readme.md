@@ -1,165 +1,158 @@
 # StayNGo
 
-StayNGo is a web-based platform designed to address the challenges faced by middle-class and lower-income individuals in accessing affordable temporary lodging, especially when seeking medical care in distant cities. Inspired by the long waiting periods at renowned hospitals like Tata, StayNGo aims to provide a centralized solution for finding budget-friendly accommodations near essential services.
+StayNGo is a premium, web-based platform designed to address the challenges faced by middle-class and lower-income individuals in accessing affordable temporary lodging, especially when seeking medical care in distant cities. Inspired by the long waiting periods at renowned hospitals like Tata Memorial, StayNGo provides a centralized solution for finding budget-friendly accommodations near essential healthcare services.
 
 ---
 
-## The Problem
+## 🚀 The Mission
 
-Many patients and their families travel significant distances to access quality healthcare. During the often lengthy waiting periods (5-7 days or more) for medical appointments or procedures, they require temporary lodging. However, conventional options like OYO or Trivago are often prohibitively expensive, adding a substantial financial burden to already vulnerable individuals.
-
----
-
-## Our Solution: StayNGo
-
-StayNGo leverages a robust **Database Management System (DBMS)** to connect users with affordable rental rooms. Our platform focuses on:
-
-- **Affordability:** Providing cost-effective alternatives to traditional hotels.
-- **Proximity:** Helping users find lodging close to hospitals and other critical locations.
-- **Ease of Use:** Simplifying the search and booking process through efficient data management.
+Many patients and their families travel significant distances to access quality healthcare. During lengthy waiting periods (5-7 days or more) for medical appointments or procedures, they require temporary lodging. conventional options are often prohibitively expensive. StayNGo bridges this gap by offering a transparent, efficient, and affordable marketplace for temporary housing.
 
 ---
 
-## Key Features
+## ✨ Key Features
 
-### Data Filtering and Querying
-
-Our database stores comprehensive information on rental properties, including:
-
-- **Location:** Precise addresses and proximity to key landmarks like hospitals.
-- **Pricing:** Transparent and affordable rates.
-- **Amenities:** Details about available facilities (e.g., kitchen, Wi-Fi, laundry).
-
-Users can quickly **filter accommodations** based on their budget, desired distance from medical centers, or specific amenity requirements, making the search process efficient and tailored to their needs.
-
-### Side-by-Side Comparisons
-
-StayNGo enables users to **compare different rental options** directly within the platform. This feature highlights crucial factors such as cost, amenities, and location, empowering users to make informed decisions without the need to visit multiple websites or physical locations.
-
-### Reporting and Analytics
-
-We utilize data analytics to gain insights into user preferences and booking trends. This allows us to:
-
-- **Optimize Offerings:** Continuously improve the selection of available accommodations.
-- **Identify High-Demand Periods:** Understand peak booking times to better serve users.
-- **Provide Better Recommendations:** Offer personalized suggestions based on past behavior and preferences.
-
-For property owners, our analytics provide valuable insights into demand trends, enabling them to adjust pricing strategies and enhance their services.
-
-### Scalability
-
-StayNGo is built with **scalability** in mind. The platform can efficiently handle increasing data volumes and readily expand its coverage to include more rental options and new geographical areas. This ensures that StayNGo can adapt to growth and continue to serve a growing user base, including patients, their families, and even students seeking affordable housing.
+- **Affordable Rentals:** Curated listings focusing on cost-effectiveness for long-term recovery stays.
+- **Smart Filtering:** Search by proximity to specific hospitals, budget, and essential amenities (kitchen, Wi-Fi, laundry).
+- **Comprehensive Reviews:** User-driven ratings and comments to ensure transparency and trust.
+- **Admin Dashboard:** Effortless management of properties, rooms, and amenities for property owners.
+- **Integrated Payments:** Secure booking and payment tracking within the platform.
+- **Automated Scheduling:** Real-time availability updates powered by a backend scheduler.
 
 ---
 
-## Technology Stack
+## 🛠️ Technology Stack
 
-- **Frontend:** HTML templates rendered by Flask
-- **Backend:** Flask (Python)
-- **Database:** MySQL
+StayNGo uses a modern, scalable architecture:
+
+- **Frontend:** [Next.js](https://nextjs.org/) (React, TypeScript, Tailwind CSS)
+- **Backend:** [Flask](https://flask.palletsprojects.com/) (Python)
+- **Database:** [PostgreSQL](https://www.postgresql.org/) (Hosted on Supabase)
+- **Authentication:** [Supabase Auth](https://supabase.com/auth)
+- **Storage:** [Supabase Storage](https://supabase.com/storage) (for property images)
 
 ---
 
-## For Runnig the frontend
+## 🏗️ Getting Started
 
-1)pip install -r requirements.txt (Windows/Linux) or pip3 install -r requirements.txt(MacOS)
-2)python app.py (Windows/Linux) or python3 app.py (MacOs)
+### Prerequisites
+- Python 3.x
+- Node.js & npm
+- Supabase account (for DB, Auth, and Storage)
 
-## Database Schema
+### 1. Backend Setup
+```bash
+cd backend
+pip install -r requirements.txt
+# Create a .env file with:
+# SECRET_KEY=your_secret
+# DB_HOST, DB_USER, DB_PASSWORD, DB_PORT, DB_NAME
+# SUPABASE_URL, SUPABASE_KEY
+python app.py
+```
 
-The StayNGo database is structured to efficiently manage information related to users, properties, rooms, amenities, bookings, payments, and reviews.
+### 2. Frontend Setup
+```bash
+cd frontend
+npm install
+# Create a .env file with backend API URL
+npm run dev
+```
+
+---
+
+## 📊 Database Schema
+
+StayNGo's robust data model is designed for efficiency and scale.
 
 ```sql
--- Create USERS table
-CREATE TABLE USERS (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
+-- USERS table (Integrated with Supabase Auth)
+CREATE TABLE "USERS" (
+    user_id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'user') NOT NULL,
+    role VARCHAR(20) NOT NULL, -- 'admin', 'user'
     phone_number VARCHAR(15),
+    auth_id UUID UNIQUE, -- Linked to Supabase auth.users
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create PROPERTIES table
-CREATE TABLE PROPERTIES (
-    property_id INT AUTO_INCREMENT PRIMARY KEY,
-    owner_id INT NOT NULL,
-    address VARCHAR(255) NOT NULL,
+-- PROPERTIES table
+CREATE TABLE "PROPERTIES" (
+    property_id SERIAL PRIMARY KEY,
+    owner_id INT REFERENCES "USERS"(user_id) ON DELETE CASCADE,
+    address TEXT NOT NULL,
     city VARCHAR(100) NOT NULL,
     state VARCHAR(100) NOT NULL,
     country VARCHAR(100) NOT NULL,
     description TEXT,
-    image_url VARCHAR(500),
+    image_url TEXT,
     image_description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (owner_id) REFERENCES USERS(user_id) ON DELETE CASCADE
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create ROOMS table
-CREATE TABLE ROOMS (
-    room_id INT AUTO_INCREMENT PRIMARY KEY,
-    property_id INT NOT NULL,
+-- ROOMS table
+CREATE TABLE "ROOMS" (
+    room_id SERIAL PRIMARY KEY,
+    property_id INT REFERENCES "PROPERTIES"(property_id) ON DELETE CASCADE,
     room_type VARCHAR(50) NOT NULL,
     capacity INT NOT NULL,
     price_per_night DECIMAL(10, 2) NOT NULL,
     availability_status BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (property_id) REFERENCES PROPERTIES(property_id) ON DELETE CASCADE
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create AMENITIES table
-CREATE TABLE AMENITIES (
-    amenity_id INT AUTO_INCREMENT PRIMARY KEY,
-    property_id INT NOT NULL,
+-- AMENITIES table
+CREATE TABLE "AMENITIES" (
+    amenity_id SERIAL PRIMARY KEY,
+    property_id INT REFERENCES "PROPERTIES"(property_id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (property_id) REFERENCES PROPERTIES(property_id) ON DELETE CASCADE
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create BOOKINGS table
-CREATE TABLE BOOKINGS (
-    booking_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    room_id INT NOT NULL,
+-- BOOKINGS table
+CREATE TABLE "BOOKINGS" (
+    booking_id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES "USERS"(user_id) ON DELETE CASCADE,
+    room_id INT REFERENCES "ROOMS"(room_id) ON DELETE CASCADE,
     check_in_date DATE NOT NULL,
     check_out_date DATE NOT NULL,
     total_price DECIMAL(10, 2) NOT NULL,
-    booking_status ENUM('confirmed', 'cancelled', 'completed') DEFAULT 'confirmed',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (room_id) REFERENCES ROOMS(room_id) ON DELETE CASCADE
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create PAYMENTS table
-CREATE TABLE PAYMENTS (
-    payment_id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NOT NULL,
+-- PAYMENTS table
+CREATE TABLE "PAYMENTS" (
+    payment_id SERIAL PRIMARY KEY,
+    booking_id INT REFERENCES "BOOKINGS"(booking_id) ON DELETE CASCADE,
     payment_method VARCHAR(50) NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
-    payment_status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
-    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (booking_id) REFERENCES BOOKINGS(booking_id) ON DELETE CASCADE
+    payment_status VARCHAR(20) DEFAULT 'completed',
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create REVIEWS table
-CREATE TABLE REVIEWS (
-    review_id INT AUTO_INCREMENT PRIMARY KEY,
-    room_id INT NOT NULL,
-    user_id INT NOT NULL,
-    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+-- REVIEWS table
+CREATE TABLE "REVIEWS" (
+    review_id SERIAL PRIMARY KEY,
+    room_id INT REFERENCES "ROOMS"(room_id) ON DELETE CASCADE,
+    user_id INT REFERENCES "USERS"(user_id) ON DELETE CASCADE,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (room_id) REFERENCES ROOMS(room_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
+
+---
+
+## 📈 Future Scalability
+
+StayNGo is built to expand. The modular architecture allows for easy addition of:
+- **Map Integration:** Visual search via interactive maps.
+- **Multi-lingual Support:** To serve a diverse waitlist of patients.
+- **AI Recommendations:** Optimized lodging suggestions based on medical appointment schedules.

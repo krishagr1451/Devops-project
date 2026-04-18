@@ -69,13 +69,25 @@ class User:
 
     @staticmethod
     def register(name, email, password, role, phone_number):
+        try:
+            # 1. Sign up user inside Supabase Auth
+            auth_response = supabase.auth.sign_up({
+                "email": email,
+                "password": password
+            })
+            
+            # Auth response provides a user object if successful
+            user_auth_id = auth_response.user.id
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"Supabase auth failed: {str(e)}"}), 400
+
+        # 2. Insert into local USERS table and map to Auth UUID
         conn = Database.create_connection()
         cursor = conn.cursor()
-        hashed_password = generate_password_hash(password)
         try:
             cursor.execute(
-                'INSERT INTO "USERS" (name, email, password, role, phone_number) VALUES (%s, %s, %s, %s, %s)',
-                (name, email, hashed_password, role, phone_number)
+                'INSERT INTO "USERS" (name, email, role, phone_number, auth_id) VALUES (%s, %s, %s, %s, %s)',
+                (name, email, role, phone_number, user_auth_id)
             )
             conn.commit()
             return jsonify({"status": "success", "message": "Account created successfully! Please log in."})
@@ -87,18 +99,31 @@ class User:
 
     @staticmethod
     def login(email, password, role):
+        try:
+            # 1. Authenticate with Supabase
+            auth_response = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            user_auth_id = auth_response.user.id
+        except Exception as e:
+            return jsonify({"status": "error", "message": "Login failed. Check your credentials and try again."}), 401
+
+        # 2. Fetch from our linked local table
         conn = Database.create_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM "USERS" WHERE email=%s AND role=%s', (email, role))
+        cursor.execute('SELECT * FROM "USERS" WHERE auth_id=%s AND role=%s', (user_auth_id, role))
         user_data = cursor.fetchone()
         conn.close()
 
-        if user_data and check_password_hash(user_data['password'], password):
+        if user_data:
             session.permanent = True
             session['logged_in'] = True
             session['user_id'] = user_data['user_id']
             session['name'] = user_data['name']
             session['role'] = user_data['role']
+            # Optionally store Supabase tokens in session if you ever need to access RLS later
+            session['access_token'] = auth_response.session.access_token
             return jsonify({
                 "status": "success",
                 "message": "Logged in successfully.",
@@ -107,11 +132,15 @@ class User:
                 "user_id": user_data['user_id']
             })
         else:
-            return jsonify({"status": "error", "message": "Login failed. Check your credentials and try again."}), 401
+            return jsonify({"status": "error", "message": "Account does not exist with that role."}), 401
 
     @staticmethod
     def logout():
         session.clear()
+        try:
+            supabase.auth.sign_out()
+        except:
+            pass
         return jsonify({"status": "success", "message": "You have been logged out."})
 
 

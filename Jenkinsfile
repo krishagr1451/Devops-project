@@ -22,8 +22,9 @@ pipeline {
             }
             steps {
                 // 'SonarQubeServer' must match the name in Jenkins 'Configure System'
-                withSonarQubeEnv('SonarQubeServer') {
-                    sh "${scannerHome}/bin/sonar-scanner"
+                // Use explicit SonarQube token credential to avoid auth errors
+                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                    sh "${scannerHome}/bin/sonar-scanner -Dsonar.login=$SONAR_TOKEN"
                 }
             }
         }

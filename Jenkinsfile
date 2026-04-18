@@ -28,41 +28,43 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build & Push Docker Images') {
             steps {
                 script {
-                    echo "Building Backend Image..."
-                    sh "docker build -t ${DOCKER_HUB_REPO}-backend:latest ./backend"
-                    
-                    echo "Building Frontend Image..."
-                    sh "docker build -t ${DOCKER_HUB_REPO}-frontend:latest ./frontend"
-                }
-            }
-        }
-
-        stage('Push Docker Images') {
-            steps {
-                script {
-                    // Logs into DockerHub to push the images
                     withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        // Dynamically build image names using your actual Docker Hub username
+                        def backendImage = "${DOCKER_USER}/stayngo-backend:latest"
+                        def frontendImage = "${DOCKER_USER}/stayngo-frontend:latest"
+                        
+                        echo "Building Images..."
+                        sh "docker build -t ${backendImage} ./backend"
+                        sh "docker build -t ${frontendImage} ./frontend"
+                        
+                        echo "Pushing Images to Docker Hub..."
                         sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
-                        sh "docker push ${DOCKER_HUB_REPO}-backend:latest"
-                        sh "docker push ${DOCKER_HUB_REPO}-frontend:latest"
+                        sh "docker push ${backendImage}"
+                        sh "docker push ${frontendImage}"
                     }
                 }
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Deploy to EC2 (Docker Compose)') {
             steps {
                 script {
-                    // Assumes a Secret text/file in Jenkins containing the Kubeconfig YAML
-                    withCredentials([file(credentialsId: env.KUBECONFIG_CREDNTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
-                        sh "export KUBECONFIG=\$KUBECONFIG_FILE"
-                        sh "kubectl apply -f k8s/configmap.yaml"
-                        // Secrets should typically be managed externally, this is for demonstration
-                        sh "kubectl apply -f k8s/backend.yaml"
-                        sh "kubectl apply -f k8s/frontend.yaml"
+                    // Extract SSH key and safely execute the compose pull and up commands natively on the host
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+                        def hostIP = "65.0.117.219" // EC2 instance IP
+                        
+                        // Disable strict host checking to pass via Jenkins headless node
+                        sh """
+                            ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \$SSH_USER@${hostIP} '
+                                cd ~/stayngo && 
+                                export DOCKER_USERNAME=\$DOCKER_USER &&
+                                docker compose -f docker-compose.yml pull && 
+                                docker compose -f docker-compose.yml up -d
+                            '
+                        """
                     }
                 }
             }

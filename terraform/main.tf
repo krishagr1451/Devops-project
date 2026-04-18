@@ -54,6 +54,22 @@ resource "aws_security_group" "stayngo_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Frontend App
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Backend App
+  ingress {
+    from_port   = 5001
+    to_port     = 5001
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Allow all outbound traffic to download docker images, dependencies, etc.
   egress {
     from_port   = 0

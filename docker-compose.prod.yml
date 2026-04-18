@@ -1,16 +1,16 @@
 services:
   backend:
     # Use Docker Hub tags for public pushing/pulling via Jenkins
-    image: ${DOCKER_USERNAME:-mahadevballa}/stayngo-backend:latest
+    image: ${DOCKER_USERNAME:-mayankc1533262}/stayngo-backend:latest
     container_name: stayngo-backend
     restart: always
     ports:
       - "5001:5001"
-    env_file: 
+    env_file:
       - .env
 
   frontend:
-    image: ${DOCKER_USERNAME:-mahadevballa}/stayngo-frontend:latest
+    image: ${DOCKER_USERNAME:-mayankc1533262}/stayngo-frontend:latest
     container_name: stayngo-frontend
     restart: always
     ports:

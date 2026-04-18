@@ -18,3 +18,5 @@ services:
     environment:
       # Use internal docker networking alias or EC2 public IP
       NEXT_PUBLIC_API_URL: "http://stayngo-backend:5001/api"
+    env_file:
+      - .env

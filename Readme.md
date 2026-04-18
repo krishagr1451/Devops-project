@@ -27,8 +27,8 @@ StayNGo uses a modern, scalable architecture:
 
 - **Frontend:** [Next.js](https://nextjs.org/) (React, TypeScript, Tailwind CSS)
 - **Backend:** [Flask](https://flask.palletsprojects.com/) (Python)
-- **Database:** [PostgreSQL](https://www.postgresql.org/) (Hosted on Supabase)
-- **Authentication:** [Supabase Auth](https://supabase.com/auth)
+- **Database & Auth:** [Supabase](https://supabase.com/) (PostgreSQL & Supabase Auth)
+- **API Client:** [Supabase Python SDK](https://github.com/supabase-community/supabase-py) (HTTP-based for maximum connectivity)
 - **Storage:** [Supabase Storage](https://supabase.com/storage) (for property images)
 
 ---
@@ -44,20 +44,32 @@ StayNGo uses a modern, scalable architecture:
 ```bash
 cd backend
 pip install -r requirements.txt
+
 # Create a .env file with:
 # SECRET_KEY=your_secret
-# DB_HOST, DB_USER, DB_PASSWORD, DB_PORT, DB_NAME
-# SUPABASE_URL, SUPABASE_KEY
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_KEY=your-anon-key
+# PORT=5001
+
 python app.py
 ```
+
+> [!NOTE]
+> The backend now runs on port **5001** and uses the Supabase HTTP client, so direct PostgreSQL connection strings (`DB_HOST`, etc.) are no longer required for the server to run.
 
 ### 2. Frontend Setup
 ```bash
 cd frontend
 npm install
-# Create a .env file with backend API URL
+# Ensure backend API proxy is set to http://localhost:5001
 npm run dev
 ```
+
+### 3. Supabase Configuration
+To ensure everything works correctly:
+1. **Database**: Create the `USERS` table with an `auth_id (UUID)` column linked to Supabase Auth.
+2. **Storage**: Create a **Public** bucket named `property-images`.
+3. **Policies**: Add an **INSERT** and **SELECT** policy to the `property-images` bucket to allow image uploads.
 
 ---
 

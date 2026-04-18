@@ -1,10 +1,13 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+import uuid
+from flask import Flask, request, session, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-import pymysql
+import psycopg2
+import psycopg2.extras
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta, datetime
+from supabase import create_client, Client
 
 # Load environment variables
 load_dotenv()
@@ -15,28 +18,42 @@ app.permanent_session_lifetime = timedelta(minutes=60)
 
 CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
 
+# ==============================
+# SUPABASE CLIENT (for Storage)
+# ==============================
+supabase: Client = create_client(
+    os.getenv("SUPABASE_URL"),
+    os.getenv("SUPABASE_KEY")
+)
+
+STORAGE_BUCKET = "property-images"
+
+@app.route('/api/test_supabase')
+def test_supabase():
+    """Simple test route to verify Supabase Client connection."""
+    try:
+        # Tries to select from USERS table (already created in Step 2 of plan)
+        response = supabase.table('USERS').select("count", count='exact').limit(0).execute()
+        return jsonify({"status": "success", "message": "Supabase Connection OK", "count": response.count})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 # ==============================
-# DATABASE CONNECTION UTILITY (Aiven MySQL over TLS)
+# DATABASE CONNECTION UTILITY (Supabase PostgreSQL)
 # ==============================
 class Database:
     @staticmethod
     def create_connection():
-        basedir = os.path.abspath(os.path.dirname(__file__))
-        ca_path = os.path.join(basedir, os.getenv("DB_SSL_CA", "ca.pem"))
-        timeout = 10
-        return pymysql.connect(
-            charset="utf8mb4",
-            connect_timeout=timeout,
-            cursorclass=pymysql.cursors.DictCursor,
-            db=os.getenv("DB_NAME"),
+        return psycopg2.connect(
             host=os.getenv("DB_HOST"),
-            password=str(os.getenv("DB_PASSWORD")),
-            read_timeout=timeout,
-            port=int(os.getenv("DB_PORT")),
-            user=os.getenv("DB_USER"),
-            write_timeout=timeout,
-            ssl={"ca": ca_path}
+            port=int(os.getenv("DB_PORT", 5432)),
+            dbname=os.getenv("DB_NAME", "postgres"),
+            user=os.getenv("DB_USER", "postgres"),
+            password=os.getenv("DB_PASSWORD"),
+            connect_timeout=10,
+            sslmode="require",
+            cursor_factory=psycopg2.extras.RealDictCursor,
         )
 
 
@@ -57,7 +74,7 @@ class User:
         hashed_password = generate_password_hash(password)
         try:
             cursor.execute(
-                "INSERT INTO USERS (name, email, password, role, phone_number) VALUES (%s, %s, %s, %s, %s)",
+                'INSERT INTO "USERS" (name, email, password, role, phone_number) VALUES (%s, %s, %s, %s, %s)',
                 (name, email, hashed_password, role, phone_number)
             )
             conn.commit()
@@ -72,7 +89,7 @@ class User:
     def login(email, password, role):
         conn = Database.create_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM USERS WHERE email=%s AND role=%s", (email, role))
+        cursor.execute('SELECT * FROM "USERS" WHERE email=%s AND role=%s', (email, role))
         user_data = cursor.fetchone()
         conn.close()
 
@@ -107,12 +124,14 @@ class Admin(User):
         cursor = conn.cursor()
         try:
             cursor.execute("""
-                INSERT INTO PROPERTIES
+                INSERT INTO "PROPERTIES"
                 (owner_id, address, city, state, country, description, image_url, image_description)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING property_id
             """, (self.user_id, address, city, state, country, description, image_url, image_description))
+            row = cursor.fetchone()
             conn.commit()
-            property_id = cursor.lastrowid
+            property_id = row['property_id']
             return jsonify({"status": "success", "message": "Property added successfully!", "property_id": property_id})
         except Exception as err:
             conn.rollback()
@@ -125,7 +144,7 @@ class Admin(User):
         cursor = conn.cursor()
         try:
             cursor.execute("""
-                UPDATE PROPERTIES SET address = %s, city = %s, state = %s, country = %s,
+                UPDATE "PROPERTIES" SET address = %s, city = %s, state = %s, country = %s,
                 description = %s, image_url = %s, image_description = %s
                 WHERE property_id = %s AND owner_id = %s
             """, (address, city, state, country, description, image_url, image_description, property_id, self.user_id))
@@ -141,10 +160,9 @@ class Admin(User):
         conn = Database.create_connection()
         cursor = conn.cursor()
         try:
-            conn.begin()
-            cursor.execute("DELETE FROM ROOMS WHERE property_id = %s", (property_id,))
-            cursor.execute("DELETE FROM AMENITIES WHERE property_id = %s", (property_id,))
-            cursor.execute("DELETE FROM PROPERTIES WHERE property_id = %s AND owner_id = %s", (property_id, self.user_id))
+            cursor.execute('DELETE FROM "ROOMS" WHERE property_id = %s', (property_id,))
+            cursor.execute('DELETE FROM "AMENITIES" WHERE property_id = %s', (property_id,))
+            cursor.execute('DELETE FROM "PROPERTIES" WHERE property_id = %s AND owner_id = %s', (property_id, self.user_id))
             if cursor.rowcount == 0:
                 conn.rollback()
                 return jsonify({"status": "error", "message": "Property not found or no permission."}), 403
@@ -160,17 +178,17 @@ class Admin(User):
     def viewDashboard(self):
         conn = Database.create_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM PROPERTIES WHERE owner_id = %s", (self.user_id,))
+        cursor.execute('SELECT * FROM "PROPERTIES" WHERE owner_id = %s', (self.user_id,))
         properties = cursor.fetchall()
         conn.close()
-        return jsonify({"properties": properties, "name": self.name, "role": self.role})
+        return jsonify({"properties": [dict(p) for p in properties], "name": self.name, "role": self.role})
 
     @staticmethod
     def addAmenity(property_id, name, description):
         conn = Database.create_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("INSERT INTO AMENITIES (property_id, name, description) VALUES (%s, %s, %s)",
+            cursor.execute('INSERT INTO "AMENITIES" (property_id, name, description) VALUES (%s, %s, %s)',
                            (property_id, name, description))
             conn.commit()
             return jsonify({"status": "success", "message": "Amenity added successfully!"})
@@ -184,17 +202,17 @@ class Admin(User):
     def viewAmenities(property_id):
         conn = Database.create_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM AMENITIES WHERE property_id = %s", (property_id,))
+        cursor.execute('SELECT * FROM "AMENITIES" WHERE property_id = %s', (property_id,))
         amenities = cursor.fetchall()
         conn.close()
-        return amenities
+        return [dict(a) for a in amenities]
 
     @staticmethod
     def deleteAmenity(amenity_id, property_id):
         conn = Database.create_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("DELETE FROM AMENITIES WHERE amenity_id = %s", (amenity_id,))
+            cursor.execute('DELETE FROM "AMENITIES" WHERE amenity_id = %s', (amenity_id,))
             conn.commit()
             return jsonify({"status": "success", "message": "Amenity deleted successfully!"})
         except Exception as err:
@@ -208,7 +226,7 @@ class Admin(User):
         conn = Database.create_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("UPDATE AMENITIES SET name = %s, description = %s WHERE amenity_id = %s",
+            cursor.execute('UPDATE "AMENITIES" SET name = %s, description = %s WHERE amenity_id = %s',
                            (name, description, amenity_id))
             conn.commit()
             return jsonify({"status": "success", "message": "Amenity updated successfully!"})
@@ -225,9 +243,9 @@ class Admin(User):
         cursor = conn.cursor()
         try:
             cursor.execute("""
-                INSERT INTO ROOMS (property_id, room_type, capacity, price_per_night, availability_status)
+                INSERT INTO "ROOMS" (property_id, room_type, capacity, price_per_night, availability_status)
                 VALUES (%s, %s, %s, %s, %s)
-            """, (property_id, room_type, int(capacity), float(price_per_night), 1 if availability_status else 0))
+            """, (property_id, room_type, int(capacity), float(price_per_night), bool(availability_status)))
             conn.commit()
             return jsonify({"status": "success", "message": "Room added successfully!"})
         except Exception as err:
@@ -240,17 +258,17 @@ class Admin(User):
     def viewRooms(property_id):
         conn = Database.create_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM ROOMS WHERE property_id = %s", (property_id,))
+        cursor.execute('SELECT * FROM "ROOMS" WHERE property_id = %s', (property_id,))
         rooms = cursor.fetchall()
         conn.close()
-        return rooms
+        return [dict(r) for r in rooms]
 
     @staticmethod
     def deleteRoom(room_id, property_id):
         conn = Database.create_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("DELETE FROM ROOMS WHERE room_id = %s", (room_id,))
+            cursor.execute('DELETE FROM "ROOMS" WHERE room_id = %s', (room_id,))
             conn.commit()
             return jsonify({"status": "success", "message": "Room deleted successfully!"})
         except Exception as err:
@@ -265,10 +283,10 @@ class Admin(User):
         cursor = conn.cursor()
         try:
             cursor.execute("""
-                UPDATE ROOMS SET room_type = %s, capacity = %s,
+                UPDATE "ROOMS" SET room_type = %s, capacity = %s,
                 price_per_night = %s, availability_status = %s
                 WHERE room_id = %s
-            """, (room_type, int(capacity), float(price_per_night), 1 if availability_status else 0, room_id))
+            """, (room_type, int(capacity), float(price_per_night), bool(availability_status), room_id))
             conn.commit()
             return jsonify({"status": "success", "message": "Room updated successfully!"})
         except Exception as err:
@@ -282,21 +300,25 @@ class Admin(User):
     def getRoomStatus(property_id, owner_id):
         conn = Database.create_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM PROPERTIES WHERE property_id = %s AND owner_id = %s", (property_id, owner_id))
+        cursor.execute('SELECT * FROM "PROPERTIES" WHERE property_id = %s AND owner_id = %s', (property_id, owner_id))
         property_details = cursor.fetchone()
         if not property_details:
             conn.close()
             return None, None
         cursor.execute("""
             SELECT r.room_id, r.room_type, r.capacity, r.price_per_night,
-                   CASE WHEN b.booking_id IS NOT NULL THEN 1 ELSE 0 END AS is_booked
-            FROM ROOMS r
-            LEFT JOIN BOOKINGS b ON r.room_id = b.room_id AND b.check_out_date >= CURDATE()
+                   EXISTS (
+                       SELECT 1 FROM "BOOKINGS" b 
+                       WHERE b.room_id = r.room_id 
+                         AND b.check_out_date > CURRENT_DATE 
+                         AND b.check_in_date <= CURRENT_DATE
+                   ) AS is_booked
+            FROM "ROOMS" r
             WHERE r.property_id = %s
         """, (property_id,))
         rooms = cursor.fetchall()
         conn.close()
-        return property_details, rooms
+        return dict(property_details), [dict(r) for r in rooms]
 
 
 class Guest(User):
@@ -306,20 +328,20 @@ class Guest(User):
     def searchRooms(self):
         conn = Database.create_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM PROPERTIES")
+        cursor.execute('SELECT * FROM "PROPERTIES"')
         properties = cursor.fetchall()
         conn.close()
-        return jsonify({"properties": properties, "name": self.name, "role": self.role})
+        return jsonify({"properties": [dict(p) for p in properties], "name": self.name, "role": self.role})
 
     def bookRoom(self, room_id, property_id, check_in_date, check_out_date, payment_method):
         conn = Database.create_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM ROOMS WHERE room_id = %s", (room_id,))
+        cursor.execute('SELECT * FROM "ROOMS" WHERE room_id = %s', (room_id,))
         room = cursor.fetchone()
 
         if not room or not bool(room['availability_status']):
             conn.close()
-            return jsonify({"status": "error", "message": "This room is currently unavailable."}), 400
+            return jsonify({"status": "error", "message": "This room is currently turned off by the admin."}), 400
 
         check_in = datetime.strptime(check_in_date, '%Y-%m-%d')
         check_out = datetime.strptime(check_out_date, '%Y-%m-%d')
@@ -327,22 +349,32 @@ class Guest(User):
         if num_days <= 0:
             conn.close()
             return jsonify({"status": "error", "message": "Invalid date range."}), 400
+
+        # DYNAMIC CHECK: Ensure there are no overlapping bookings for the selected dates
+        cursor.execute("""
+            SELECT booking_id FROM "BOOKINGS" 
+            WHERE room_id = %s 
+              AND check_in_date < %s 
+              AND check_out_date > %s
+        """, (room_id, check_out.date(), check_in.date()))
+        if cursor.fetchone():
+            conn.close()
+            return jsonify({"status": "error", "message": "Room is already booked for these dates."}), 400
         total_price = num_days * float(room['price_per_night'])
 
         try:
-            conn.begin()
             cursor.execute("""
-                INSERT INTO BOOKINGS (user_id, room_id, check_in_date, check_out_date, total_price, created_at, updated_at)
+                INSERT INTO "BOOKINGS" (user_id, room_id, check_in_date, check_out_date, total_price, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                RETURNING booking_id
             """, (self.user_id, room_id, check_in_date, check_out_date, total_price))
-            booking_id = cursor.lastrowid
+            booking_id = cursor.fetchone()['booking_id']
 
             cursor.execute("""
-                INSERT INTO PAYMENTS (booking_id, payment_method, amount, payment_status, payment_date)
+                INSERT INTO "PAYMENTS" (booking_id, payment_method, amount, payment_status, payment_date)
                 VALUES (%s, %s, %s, 'completed', NOW())
             """, (booking_id, payment_method, total_price))
 
-            cursor.execute("UPDATE ROOMS SET availability_status = 0 WHERE room_id = %s", (room_id,))
             conn.commit()
             return jsonify({"status": "success", "message": "Booking and payment successful!", "booking_id": booking_id})
         except Exception as err:
@@ -355,15 +387,14 @@ class Guest(User):
         conn = Database.create_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT * FROM BOOKINGS WHERE booking_id = %s AND user_id = %s", (booking_id, self.user_id))
+            cursor.execute('SELECT * FROM "BOOKINGS" WHERE booking_id = %s AND user_id = %s', (booking_id, self.user_id))
             booking = cursor.fetchone()
             if not booking:
                 conn.close()
                 return jsonify({"status": "error", "message": "Booking not found or no permission."}), 404
 
-            cursor.execute("DELETE FROM PAYMENTS WHERE booking_id = %s", (booking_id,))
-            cursor.execute("UPDATE ROOMS SET availability_status = 1 WHERE room_id = %s", (booking['room_id'],))
-            cursor.execute("DELETE FROM BOOKINGS WHERE booking_id = %s", (booking_id,))
+            cursor.execute('DELETE FROM "PAYMENTS" WHERE booking_id = %s', (booking_id,))
+            cursor.execute('DELETE FROM "BOOKINGS" WHERE booking_id = %s', (booking_id,))
             conn.commit()
             return jsonify({"status": "success", "message": "Booking cancelled successfully."})
         except Exception as err:
@@ -377,48 +408,59 @@ class Guest(User):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT b.booking_id, b.check_in_date, b.check_out_date, b.total_price, r.room_type, p.address
-            FROM BOOKINGS b
-            JOIN ROOMS r ON b.room_id = r.room_id
-            JOIN PROPERTIES p ON r.property_id = p.property_id
+            FROM "BOOKINGS" b
+            JOIN "ROOMS" r ON b.room_id = r.room_id
+            JOIN "PROPERTIES" p ON r.property_id = p.property_id
             WHERE b.user_id = %s
         """, (self.user_id,))
         bookings = cursor.fetchall()
         conn.close()
+        result = []
         for b in bookings:
-            if b.get('check_in_date'):
-                b['check_in_date'] = str(b['check_in_date'])
-            if b.get('check_out_date'):
-                b['check_out_date'] = str(b['check_out_date'])
-        return jsonify({"bookings": bookings})
+            bd = dict(b)
+            if bd.get('check_in_date'):
+                bd['check_in_date'] = str(bd['check_in_date'])
+            if bd.get('check_out_date'):
+                bd['check_out_date'] = str(bd['check_out_date'])
+            result.append(bd)
+        return jsonify({"bookings": result})
 
     @staticmethod
     def viewPropertyDetails(property_id):
         conn = Database.create_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM PROPERTIES WHERE property_id = %s", (property_id,))
+        cursor.execute('SELECT * FROM "PROPERTIES" WHERE property_id = %s', (property_id,))
         property_details = cursor.fetchone()
-        cursor.execute("SELECT * FROM AMENITIES WHERE property_id = %s", (property_id,))
+        cursor.execute('SELECT * FROM "AMENITIES" WHERE property_id = %s', (property_id,))
         amenities = cursor.fetchall()
-        cursor.execute("SELECT * FROM ROOMS WHERE property_id = %s", (property_id,))
+        cursor.execute('SELECT * FROM "ROOMS" WHERE property_id = %s', (property_id,))
         rooms = cursor.fetchall()
 
         room_reviews = {}
         for room in rooms:
             cursor.execute("""
                 SELECT r.rating, r.comment, u.name AS user_name, r.created_at
-                FROM REVIEWS r
-                JOIN USERS u ON r.user_id = u.user_id
+                FROM "REVIEWS" r
+                JOIN "USERS" u ON r.user_id = u.user_id
                 WHERE r.room_id = %s
                 ORDER BY r.created_at DESC
             """, (room['room_id'],))
             reviews = cursor.fetchall()
+            revs = []
             for rev in reviews:
-                if rev.get('created_at'):
-                    rev['created_at'] = str(rev['created_at'])
-            room_reviews[str(room['room_id'])] = reviews
+                rd = dict(rev)
+                if rd.get('created_at'):
+                    rd['created_at'] = str(rd['created_at'])
+                revs.append(rd)
+            room_reviews[str(room['room_id'])] = revs
 
         conn.close()
-        return property_details, amenities, rooms, room_reviews
+        return (
+            dict(property_details) if property_details else None,
+            [dict(a) for a in amenities],
+            [dict(r) for r in rooms],
+            room_reviews
+        )
 
     @staticmethod
     def addReview(room_id, user_id, rating, comment, property_id):
@@ -427,7 +469,7 @@ class Guest(User):
         now = datetime.now()
         try:
             cursor.execute("""
-                INSERT INTO REVIEWS (room_id, user_id, rating, comment, created_at, updated_at)
+                INSERT INTO "REVIEWS" (room_id, user_id, rating, comment, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (room_id, user_id, int(rating), comment, now, now))
             conn.commit()
@@ -446,10 +488,10 @@ class Scheduler:
         cursor = conn.cursor()
         current_time = datetime.now()
         try:
-            cursor.execute("SELECT room_id FROM BOOKINGS WHERE check_out_date <= %s", (current_time.date(),))
+            cursor.execute('SELECT room_id FROM "BOOKINGS" WHERE check_out_date <= %s', (current_time.date(),))
             expired_bookings = cursor.fetchall()
             for booking in expired_bookings:
-                cursor.execute("UPDATE ROOMS SET availability_status = 1 WHERE room_id = %s", (booking['room_id'],))
+                cursor.execute('UPDATE "ROOMS" SET availability_status = TRUE WHERE room_id = %s', (booking['room_id'],))
             if expired_bookings:
                 conn.commit()
                 print(f"Updated availability for {len(expired_bookings)} room(s).")
@@ -521,10 +563,10 @@ def book_room(room_id, property_id):
 
     conn = Database.create_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM ROOMS WHERE room_id = %s", (room_id,))
+    cursor.execute('SELECT * FROM "ROOMS" WHERE room_id = %s', (room_id,))
     room = cursor.fetchone()
     conn.close()
-    return jsonify({"room": room, "property_id": property_id})
+    return jsonify({"room": dict(room) if room else None, "property_id": property_id})
 
 @app.route('/api/room_status/<int:property_id>')
 def room_status(property_id):
@@ -578,6 +620,38 @@ def delete_property(property_id):
     admin = Admin(session['user_id'], session['name'], None, 'admin')
     return admin.deleteProperty(property_id)
 
+@app.route('/api/upload_property_image', methods=['POST'])
+def upload_property_image():
+    """Upload a property image to Supabase Storage and return the public URL."""
+    if 'logged_in' not in session or session['role'] != 'admin':
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+
+    if 'image' not in request.files:
+        return jsonify({"status": "error", "message": "No image file provided"}), 400
+
+    image_file = request.files['image']
+    if image_file.filename == '':
+        return jsonify({"status": "error", "message": "Empty filename"}), 400
+
+    # Determine extension and build a unique storage path
+    ext = os.path.splitext(image_file.filename)[1].lower() or '.jpg'
+    file_name = f"{uuid.uuid4()}{ext}"
+    file_bytes = image_file.read()
+    content_type = image_file.content_type or 'image/jpeg'
+
+    try:
+        # Upload to Supabase Storage
+        supabase.storage.from_(STORAGE_BUCKET).upload(
+            path=file_name,
+            file=file_bytes,
+            file_options={"content-type": content_type}
+        )
+        # Build public URL
+        public_url = f"{os.getenv('SUPABASE_URL')}/storage/v1/object/public/{STORAGE_BUCKET}/{file_name}"
+        return jsonify({"status": "success", "image_url": public_url})
+    except Exception as err:
+        return jsonify({"status": "error", "message": str(err)}), 500
+
 @app.route('/api/add_property', methods=['POST'])
 def add_property():
     if 'logged_in' not in session or session['role'] != 'admin':
@@ -586,7 +660,7 @@ def add_property():
     admin = Admin(session['user_id'], session['name'], None, 'admin')
     return admin.addProperty(
         data['address'], data['city'], data['state'], data['country'],
-        data['description'], data['image_url'], data['image_description']
+        data['description'], data.get('image_url', ''), data.get('image_description', '')
     )
 
 @app.route('/api/edit_property/<int:property_id>', methods=['GET', 'PUT'])
@@ -599,15 +673,15 @@ def edit_property(property_id):
         return admin.editProperty(
             property_id,
             data['address'], data['city'], data['state'], data['country'],
-            data['description'], data['image_url'], data['image_description']
+            data['description'], data.get('image_url', ''), data.get('image_description', '')
         )
     conn = Database.create_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM PROPERTIES WHERE property_id = %s AND owner_id = %s",
+    cursor.execute('SELECT * FROM "PROPERTIES" WHERE property_id = %s AND owner_id = %s',
                    (property_id, session['user_id']))
     property_row = cursor.fetchone()
     conn.close()
-    return jsonify({"property": property_row})
+    return jsonify({"property": dict(property_row) if property_row else None})
 
 @app.route('/api/view_amenities/<int:property_id>')
 def view_amenities(property_id):
@@ -638,10 +712,10 @@ def edit_amenity(amenity_id):
         return Admin.editAmenity(amenity_id, data['amenity_name'], data['amenity_description'], data.get('property_id'))
     conn = Database.create_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM AMENITIES WHERE amenity_id = %s", (amenity_id,))
+    cursor.execute('SELECT * FROM "AMENITIES" WHERE amenity_id = %s', (amenity_id,))
     amenity = cursor.fetchone()
     conn.close()
-    return jsonify({"amenity": amenity})
+    return jsonify({"amenity": dict(amenity) if amenity else None})
 
 @app.route('/api/view_rooms/<int:property_id>')
 def view_rooms(property_id):
@@ -682,15 +756,15 @@ def edit_room(room_id):
         )
     cursor.execute("""
         SELECT r.*, p.property_id
-        FROM ROOMS r
-        JOIN PROPERTIES p ON r.property_id = p.property_id
+        FROM "ROOMS" r
+        JOIN "PROPERTIES" p ON r.property_id = p.property_id
         WHERE r.room_id = %s
     """, (room_id,))
     room = cursor.fetchone()
     conn.close()
     if not room:
         return jsonify({"status": "error", "message": "Room not found."}), 404
-    return jsonify({"room": room})
+    return jsonify({"room": dict(room)})
 
 if __name__ == '__main__':
     app.run(debug=True)

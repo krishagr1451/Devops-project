@@ -1,35 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-import { ChevronLeft, PlusCircle, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, PlusCircle, Loader2, UploadCloud, X, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import { addProperty } from "@/lib/api";
-
-const fields = [
-  { key: "address", label: "Address", placeholder: "123 Main Street" },
-  { key: "city", label: "City", placeholder: "Mumbai" },
-  { key: "state", label: "State", placeholder: "Maharashtra" },
-  { key: "country", label: "Country", placeholder: "India" },
-  { key: "image_url", label: "Image URL", placeholder: "https://..." },
-  { key: "image_description", label: "Image Description", placeholder: "Front view of the property" },
-];
+import { addProperty, uploadPropertyImage } from "@/lib/api";
 
 export default function AddPropertyPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<Record<string, string>>({
-    address: "", city: "", state: "", country: "", description: "", image_url: "", image_description: ""
+    address: "", city: "", state: "", country: "", description: "", image_description: ""
   });
+
+  const handleFileChange = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    handleFileChange(file);
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await addProperty(form);
+      let image_url = "";
+      if (imageFile) {
+        image_url = await uploadPropertyImage(imageFile);
+      }
+      const res = await addProperty({ ...form, image_url });
       toast.success(res.data.message);
       router.push(`/admin/amenities/${res.data.property_id}`);
     } catch (err: unknown) {
@@ -37,6 +61,14 @@ export default function AddPropertyPage() {
       toast.error(msg);
     } finally { setLoading(false); }
   };
+
+  const textFields = [
+    { key: "address", label: "Address", placeholder: "123 Main Street" },
+    { key: "city", label: "City", placeholder: "Mumbai" },
+    { key: "state", label: "State", placeholder: "Maharashtra" },
+    { key: "country", label: "Country", placeholder: "India" },
+    { key: "image_description", label: "Image Description", placeholder: "Front view of the property" },
+  ];
 
   return (
     <>
@@ -52,7 +84,105 @@ export default function AddPropertyPage() {
               <h1 className="section-title" style={{ marginBottom: 0 }}>Add New Property</h1>
             </div>
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {fields.map(({ key, label, placeholder }) => (
+
+              {/* Image Upload */}
+              <div>
+                <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 8 }}>
+                  Property Image
+                </label>
+
+                <AnimatePresence mode="wait">
+                  {imagePreview ? (
+                    <motion.div
+                      key="preview"
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      style={{ position: "relative", borderRadius: 12, overflow: "hidden", height: 200 }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={imagePreview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <div style={{
+                        position: "absolute", inset: 0,
+                        background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)"
+                      }} />
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        style={{
+                          position: "absolute", top: 10, right: 10,
+                          background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%",
+                          width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+                          cursor: "pointer", color: "#fff"
+                        }}
+                      >
+                        <X size={15} />
+                      </button>
+                      <div style={{ position: "absolute", bottom: 10, left: 12 }}>
+                        <p style={{ color: "#fff", fontSize: "0.78rem", fontWeight: 500 }}>{imageFile?.name}</p>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="dropzone"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        border: `2px dashed ${dragOver ? "var(--accent)" : "var(--border)"}`,
+                        borderRadius: 12,
+                        padding: "36px 24px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 10,
+                        cursor: "pointer",
+                        background: dragOver ? "rgba(99,102,241,0.06)" : "rgba(255,255,255,0.02)",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <div style={{
+                        width: 52, height: 52, borderRadius: "50%",
+                        background: "rgba(99,102,241,0.12)",
+                        display: "flex", alignItems: "center", justifyContent: "center"
+                      }}>
+                        <UploadCloud size={24} color="var(--accent)" />
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <p style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: 4 }}>
+                          Drop your image here
+                        </p>
+                        <p style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>
+                          or <span style={{ color: "var(--accent)", fontWeight: 600 }}>click to browse</span> · PNG, JPG, WEBP
+                        </p>
+                      </div>
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        background: "rgba(255,255,255,0.04)", borderRadius: 8,
+                        padding: "6px 14px", marginTop: 4
+                      }}>
+                        <ImageIcon size={13} color="var(--text-muted)" />
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Recommended: 1280×720 or larger</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                />
+              </div>
+
+              {/* Text Fields */}
+              {textFields.map(({ key, label, placeholder }) => (
                 <div key={key}>
                   <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>{label}</label>
                   <input
@@ -61,10 +191,12 @@ export default function AddPropertyPage() {
                     placeholder={placeholder}
                     value={form[key]}
                     onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                    required={key !== "image_url" && key !== "image_description"}
+                    required={key !== "image_description"}
                   />
                 </div>
               ))}
+
+              {/* Description */}
               <div>
                 <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Description</label>
                 <textarea
@@ -76,9 +208,10 @@ export default function AddPropertyPage() {
                   style={{ resize: "vertical" }}
                 />
               </div>
+
               <button className="btn-primary" type="submit" disabled={loading} style={{ marginTop: 8, width: "100%" }}>
-                {loading ? <Loader2 size={16} /> : null}
-                {loading ? "Adding..." : "Add Property & Continue to Amenities"}
+                {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : null}
+                {loading ? "Uploading & Adding..." : "Add Property & Continue to Amenities"}
               </button>
             </form>
           </div>

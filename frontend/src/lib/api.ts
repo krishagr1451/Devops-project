@@ -21,6 +21,17 @@ export const register = (data: {
 }) => api.post("/register", data);
 export const logout = () => api.post("/logout");
 
+// ── Image Upload ──────────────────────────────────────────────────────────────
+export const uploadPropertyImage = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await axios.post("/api/upload_property_image", formData, {
+    withCredentials: true,
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data.image_url as string;
+};
+
 // ── Admin – Properties ────────────────────────────────────────────────────────
 export const getDashboard = () => api.get("/dashboard");
 export const addProperty = (data: Record<string, string>) =>

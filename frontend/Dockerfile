@@ -8,6 +8,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY . .
+COPY .env.production .env.production
 
 # Disable telemetry and build
 ENV NEXT_TELEMETRY_DISABLED 1

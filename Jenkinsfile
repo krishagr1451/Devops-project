@@ -53,7 +53,10 @@ pipeline {
             steps {
                 script {
                     // Extract SSH key and safely execute the compose pull and up commands natively on the host
-                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+                    withCredentials([
+                        sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
+                        usernamePassword(credentialsId: env.DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')
+                    ]) {
                         def hostIP = "65.0.117.219" // EC2 instance IP
                         
                         // Disable strict host checking to pass via Jenkins headless node

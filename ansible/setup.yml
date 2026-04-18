@@ -85,3 +85,19 @@
         dest: /home/ubuntu/stayngo/docker-compose.yml
         owner: ubuntu
         mode: '0644'
+
+    - name: Give Docker socket broad permissions so Jenkins container can use it to build images
+      file:
+        path: /var/run/docker.sock
+        mode: '0666'
+
+    - name: Start SonarQube locally on EC2
+      shell: |
+        docker ps -a | grep -q sonarqube || \
+        docker run -d --name sonarqube -p 9000:9000 --restart unless-stopped sonarqube:lts-community
+
+    - name: Start Jenkins locally on EC2 (with Docker Socket mounted)
+      shell: |
+        docker ps -a | grep -q jenkins || \
+        docker run -d --name jenkins -p 8080:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock --restart unless-stopped jenkins/jenkins:lts
+

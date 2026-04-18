@@ -78,6 +78,11 @@ resource "aws_instance" "stayngo_node" {
   instance_type = var.instance_type
   key_name      = aws_key_pair.stayngo_key.key_name
   
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
+
   vpc_security_group_ids = [aws_security_group.stayngo_sg.id]
 
   # Base user data script to instantly install Docker upon boot

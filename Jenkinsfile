@@ -45,7 +45,7 @@ pipeline {
                         
                         echo "Building Images..."
                         sh "docker build -t ${backendImage} ./backend"
-                        sh "docker build -t ${frontendImage} ./frontend"
+                        sh "docker build --no-cache -t ${frontendImage} ./frontend"
                         
                         echo "Pushing Images to Docker Hub..."
                         sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"

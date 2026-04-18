@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stayngo-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: stayngo-backend
+  template:
+    metadata:
+      labels:
+        app: stayngo-backend
+    spec:
+      containers:
+      - name: backend
+        image: stayngo-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5001
+        envFrom:
+        - configMapRef:
+            name: stayngo-config
+        - secretRef:
+            name: stayngo-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stayngo-backend
+spec:
+  selector:
+    app: stayngo-backend
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5001
+  # ClusterIP keeps the backend internal to the cluster so only the frontend can reach it
+  type: ClusterIP

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stayngo-config
+data:
+  PORT: "5001"
+  # Internally resolve the backend using the Kubernetes Service Name "stayngo-backend"
+  NEXT_PUBLIC_API_URL: "http://stayngo-backend:5001/api"

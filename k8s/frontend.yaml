@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stayngo-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: stayngo-frontend
+  template:
+    metadata:
+      labels:
+        app: stayngo-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: stayngo-frontend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: stayngo-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stayngo-frontend
+spec:
+  selector:
+    app: stayngo-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  # LoadBalancer automatically requests a public IP or Cloud LoadBalancer from the provider
+  type: LoadBalancer

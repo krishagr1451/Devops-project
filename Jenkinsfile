@@ -24,9 +24,10 @@ pipeline {
                 // 'SonarQubeServer' must match the name in Jenkins 'Configure System'
                 // Use explicit SonarQube token credential to avoid auth errors
                 withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                        ${scannerHome}/bin/sonar-scanner -Dsonar.token=$SONAR_TOKEN
-                    '''
+                     sh '''
+                /var/jenkins_home/tools/hudson.plugins.sonar.SonarRunnerInstallation/SonarQubeScanner/bin/sonar-scanner \
+                -Dsonar.token=$SONAR_TOKEN
+                '''
                 }
             }
         }

@@ -17,5 +17,5 @@ COPY . .
 
 EXPOSE 5001
 
-# Start the Flask app using Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "app:app"]
+# Start the Flask app using Gunicorn with multithreading to prevent slow-client freezes
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "3", "--threads", "4", "app:app"]

@@ -35,14 +35,29 @@ pipeline {
         stage('Build & Push Docker Images') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    withCredentials([
+                        usernamePassword(credentialsId: env.DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS'),
+                        sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
+                    ]) {
                         // Dynamically build image names using your actual Docker Hub username
                         def backendImage = "${DOCKER_USER}/stayngo-backend:latest"
                         def frontendImage = "${DOCKER_USER}/stayngo-frontend:latest"
                         
+                        echo "Extracting frontend build secrets securely from EC2 vault..."
+                        def hostIP = "65.0.117.219"
+                        def supabaseUrl = sh(script: "ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \$SSH_USER@${hostIP} 'grep SUPABASE_URL ~/stayngo/.env | cut -d\"=\" -f2'", returnStdout: true).trim()
+                        def supabaseKey = sh(script: "ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \$SSH_USER@${hostIP} 'grep SUPABASE_KEY ~/stayngo/.env | cut -d\"=\" -f2'", returnStdout: true).trim()
+                        def backendApiUrl = "http://${hostIP}:5001/api"
+                        
                         echo "Building Images..."
                         sh "docker build -t ${backendImage} ./backend"
-                        sh "docker build -t ${frontendImage} ./frontend"
+                        sh """
+                            docker build \\
+                            --build-arg NEXT_PUBLIC_API_URL="${backendApiUrl}" \\
+                            --build-arg NEXT_PUBLIC_SUPABASE_URL="${supabaseUrl}" \\
+                            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${supabaseKey}" \\
+                            -t ${frontendImage} ./frontend
+                        """
                         
                         echo "Pushing Images to Docker Hub..."
                         sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"

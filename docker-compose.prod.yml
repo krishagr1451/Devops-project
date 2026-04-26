@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: ecommerce-backend-prod
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./ecommerce.db
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: ecommerce-frontend-prod
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: always

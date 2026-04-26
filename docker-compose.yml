@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: ecommerce-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=sqlite:///./ecommerce.db
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: ecommerce-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+    restart: always

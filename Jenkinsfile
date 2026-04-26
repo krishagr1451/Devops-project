@@ -13,7 +13,7 @@ pipeline {
             steps {
                 echo 'Building Backend...'
                 dir('backend') {
-                    bat 'pip install -r requirements.txt'
+                    sh 'pip install -r requirements.txt'
                 }
             }
         }
@@ -22,7 +22,7 @@ pipeline {
             steps {
                 echo 'Testing Backend...'
                 dir('backend') {
-                    bat 'python -m pytest --tb=short || exit 0'
+                    sh 'python -m pytest --tb=short || true'
                 }
             }
         }
@@ -30,14 +30,14 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 echo 'Building Docker images...'
-                bat 'docker-compose build'
+                sh 'docker compose build'
             }
         }
 
         stage('Deploy') {
             steps {
                 echo 'Deploying...'
-                bat 'docker-compose up -d'
+                sh 'docker compose up -d'
             }
         }
     }

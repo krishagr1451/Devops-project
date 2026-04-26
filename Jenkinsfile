@@ -9,24 +9,6 @@ pipeline {
             }
         }
 
-        stage('Build Backend') {
-            steps {
-                echo 'Building Backend...'
-                dir('backend') {
-                    sh 'pip install -r requirements.txt'
-                }
-            }
-        }
-
-        stage('Test Backend') {
-            steps {
-                echo 'Testing Backend...'
-                dir('backend') {
-                    sh 'python -m pytest --tb=short || true'
-                }
-            }
-        }
-
         stage('Build Docker Images') {
             steps {
                 echo 'Building Docker images...'

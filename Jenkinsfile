@@ -12,14 +12,14 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 echo 'Building Docker images...'
-                sh 'docker compose build'
+                sh 'docker-compose build'
             }
         }
 
         stage('Deploy') {
             steps {
                 echo 'Deploying...'
-                sh 'docker compose up -d'
+                sh 'docker-compose up -d'
             }
         }
     }

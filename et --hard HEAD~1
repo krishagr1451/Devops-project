@@ -1,0 +1,64 @@
+[33m333d085[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Removed .terraform files and added to gitignore
+[33mb4d182b[m feat: add Ansible configuration
+[33ma10d81b[m feat: add Terraform infrastructure code
+[33mb9cb687[m[33m ([m[1;31morigin/main[m[33m)[m fix: stop containers before deploying
+[33m590f81d[m fix: use Jenkins tool for sonar-scanner
+[33m98c666f[m fix: use Jenkins tool for sonar-scanner
+[33m421d0f7[m feat: add SonarQube analysis
+[33md8a82ff[m fix: use docker-compose instead of docker compose
+[33m84484c7[m fix: simplify Jenkinsfile to use Docker only
+[33mb9f3037[m fix: use sh instead of bat in Jenkinsfile
+[33m6c76c08[m jenkins
+[33mb9dd680[m feat: add Docker and docker-compose
+[33m19aed9d[m feat: add backend and frontend
+[33m6146eaf[m Initial project upload
+[33mb9d8497[m docs: comprehensive rewrite of Readme.md detailing advanced CI/CD pipeline, Next.js build architectures, and DevOps troubleshooting guide
+[33m377c054[m fix: dynamically route Next.js API proxies via explicit NEXT_PUBLIC_API_URL instead of hardcoding localhost
+[33mfd72599[m fix: scale Gunicorn workers and add multithreading to tolerate slow EC2 health checks and TCP scanners
+[33m4284f87[m fix: rename Supabase key to explicitly match Next.js edge configuration expectations
+[33mad9c804[m fix: explicitly force cache break for Next.js build environment injection
+[33mf8622ef[m fix: force --no-cache on frontend build to invalidate docker layers and guarantee .env.production is injected
+[33mf11e41e[m fix: embed Supabase config natively into frontend env for guaranteed build injection
+[33m1499c8d[m security: dynamically fetch public IP and Supabase credentials from EC2 vault to eliminate GitHub exposure
+[33m8d93369[m chore: remove env.production from git to prevent repository exposure
+[33mae0d1f8[m fix: embed Supabase publishable API keys into the Next.js production build bundle
+[33m748f90d[m chore: update default Docker Hub username for backend and frontend images
+[33md3cff07[m feat: securely embed public IP via public env production flag
+[33m02480e2[m fix: route NEXT_PUBLIC_API_URL via EC2 public IP
+[33m909059e[m chore: update SonarQube scanner path in Jenkinsfile and simplify project properties configuration
+[33maa79c71[m fix: use sonar.token in scanner command and avoid Groovy interpolation
+[33mc796206[m feat: open ports 3000 and 5001 in security group and update SonarQube configuration
+[33m2e20500[m fix: use explicit SonarQube token credential for scanner auth
+[33mde11c40[m fix: enforce Docker Compose v2 via explicit path to resolve container naming and metadata conflicts
+[33mf8eb3ac[m fix: mount .env secrets into frontend container to resolve Next.js SSR Supabase 500 crashes
+[33mdfe64e0[m fix: safely pipe Docker credentials into AWS SSH deploy stage block
+[33m3491f9d[m fix: safely interpolate DOCKER_USER from Jenkins env context before executing remote SSH
+[33mf442d26[m fix: ensure Groovy evaluates Docker username instead of sending literal variable name to SSH
+[33me8e7689[m fix: change compose syntax to v1 hyphenated to match apt install version
+[33m953964d[m fix: drop redundant compose flag breaking native Ubuntu bash interpreter
+[33m2c15478[m fix: bump Node.js version constraint from 18 to 20 for Next.js 14+ engine compatibility
+[33m0b269e9[m fix: update Jenkins pipeline to deploy natively to EC2 via Compose and dynamic image tagging
+[33me4e9dbc[m feat: complete devops pipeline architecture
+[33m0778b16[m chore: implement CI/CD pipeline with Jenkins, Terraform infrastructure, Kubernetes manifests, and Docker containerization
+[33mdf950b1[m docs: update documentation and requirements to reflect migration to Supabase Python SDK and port 5001
+[33m7bd95ed[m refactor: migrate database operations from psycopg2 to Supabase client for improved compatibility
+[33mbf8b6ae[m refactor: migrate stack to Next.js and PostgreSQL, update documentation, and clean up project files
+[33m60f8366[m feat: migrate authentication to Supabase and update user schema to support Auth UUIDs
+[33m45dac4d[m feat: integrate Supabase authentication, add agent skill documentation, and remove legacy backend templates.
+[33m8f590c9[m feat: initialize project structure with Next.js frontend and backend configuration
+[33m15440a9[m Update app.py
+[33m526cef1[m Update app.py
+[33md3ecd73[m Update app.py
+[33m9c2f56c[m Create scheduler.py
+[33m7d59e69[m Add Procfile for Gunicorn server configuration
+[33m485f12a[m update app.py
+[33mf8e4787[m Add files via upload
+[33m51f38ef[m Add gunicorn to requirements
+[33mde822e4[m Update requirements.txt to include new packages
+[33m0a0a534[m Update app.py
+[33m4f4e763[m Added .gitgnore and hided sensetive info about admin mysql databases id,password
+[33md780325[m Removed the requiments.txt from templates folder
+[33mc24c0cf[m Added requirments.txt
+[33mbe92ad6[m Merge branch 'main' of https://github.com/Mayank08082004/StayNGo
+[33md344b0b[m Initial commit
+[33m8a9f22c[m Creating the Git repo of StayNGo

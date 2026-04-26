@@ -1,0 +1,41 @@
+---
+- name: Setup Ecommerce Server
+  hosts: ecommerce_servers
+  become: yes
+
+  tasks:
+    - name: Update apt packages
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+          - git
+          - curl
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Clone the project repository
+      git:
+        repo: https://github.com/krishagr1451/Devops-project.git
+        dest: /home/ubuntu/ecommerce
+        version: main
+
+    - name: Start the application
+      shell: docker-compose up -d
+      args:
+        chdir: /home/ubuntu/ecommerce

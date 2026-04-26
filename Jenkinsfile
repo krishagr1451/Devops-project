@@ -16,8 +16,6 @@ pipeline {
                 }
             }
         }
-                }
-        }
 
         stage('Build Docker Images') {
             steps {

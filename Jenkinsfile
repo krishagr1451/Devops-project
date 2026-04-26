@@ -25,11 +25,12 @@ pipeline {
         }
 
         stage('Deploy') {
-            steps {
-                echo 'Deploying...'
-                sh 'docker-compose up -d'
-            }
-        }
+    steps {
+        echo 'Deploying...'
+        sh 'docker-compose down'
+        sh 'docker-compose up -d'
+    }
+}
     }
 
     post {

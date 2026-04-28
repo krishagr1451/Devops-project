@@ -34,6 +34,7 @@
         repo: https://github.com/krishagr1451/Devops-project.git
         dest: /home/ubuntu/ecommerce
         version: main
+        force: yes
 
     - name: Start the application
       shell: docker-compose up -d

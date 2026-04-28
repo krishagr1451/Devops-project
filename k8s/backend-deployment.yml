@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ecommerce-backend
+  namespace: ecommerce
   labels:
     app: ecommerce-backend
 spec:
@@ -16,7 +17,8 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ecommerce-pipeline-backend:latest
+          image: proj-backend:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8000
           env:
@@ -27,6 +29,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ecommerce-backend-service
+  namespace: ecommerce
 spec:
   selector:
     app: ecommerce-backend

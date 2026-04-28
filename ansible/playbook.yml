@@ -37,11 +37,11 @@
         force: yes
 
     - name: Remove old containers
-  shell: docker rm -f ecommerce-backend ecommerce-frontend || true
-  args:
-    chdir: /home/ubuntu/ecommerce
+      shell: docker rm -f ecommerce-backend ecommerce-frontend || true
+      args:
+        chdir: /home/ubuntu/ecommerce
 
-- name: Start the application
-  shell: docker-compose up -d
-  args:
-    chdir: /home/ubuntu/ecommerce
+    - name: Start the application
+      shell: docker-compose up -d
+      args:
+        chdir: /home/ubuntu/ecommerce

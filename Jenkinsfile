@@ -12,10 +12,6 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube') {
-                    sh '''
-                        # Install Node.js if not available
-                        which node || apt-get update && apt-get install -y nodejs npm
-                    '''
                     sh "${tool 'sonar-scanner'}/bin/sonar-scanner"
                 }
             }

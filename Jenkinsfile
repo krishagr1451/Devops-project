@@ -28,6 +28,7 @@ pipeline {
             steps {
                 echo 'Deploying...'
                 sh 'docker-compose down -v || true'
+                sh 'docker rm -f ecommerce-backend ecommerce-frontend || true'
                 sh 'docker system prune -f'
                 sh 'docker-compose up -d'
             }

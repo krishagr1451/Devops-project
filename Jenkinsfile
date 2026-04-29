@@ -12,6 +12,10 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube') {
+                    sh '''
+                        # Install Node.js if not available
+                        which node || (curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && apt-get install -y nodejs)
+                    '''
                     sh "${tool 'sonar-scanner'}/bin/sonar-scanner"
                 }
             }
@@ -25,12 +29,13 @@ pipeline {
         }
 
         stage('Deploy') {
-    steps {
-        echo 'Deploying...'
-        sh 'docker-compose down'
-        sh 'docker-compose up -d'
-    }
-}
+            steps {
+                echo 'Deploying...'
+                sh 'docker-compose down -v || true'
+                sh 'docker system prune -f'
+                sh 'docker-compose up -d'
+            }
+        }
     }
 
     post {

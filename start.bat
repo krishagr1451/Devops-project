@@ -6,6 +6,7 @@ echo.
 
 echo [1/6] Removing old Jenkins and SonarQube containers...
 docker rm -f jenkins sonarqube
+
 echo Done!
 echo.
 
@@ -20,8 +21,9 @@ echo Done!
 echo.
 
 echo [4/6] Starting App containers...
+cd C:\Users\KRISH AGRAWAL\OneDrive\Desktop\SemVI\Dev\proj
 docker rm -f ecommerce-backend ecommerce-frontend
-docker-compose -f C:\Users\KRISH AGRAWAL\OneDrive\Desktop\SemVI\Dev\proj\docker-compose.yml up -d
+docker-compose up -d
 echo Done!
 echo.
 
@@ -35,12 +37,15 @@ echo.
 
 echo [6/6] Starting Minikube and Kubernetes...
 minikube start --driver=docker
-kubectl apply -f C:\Users\KRISH AGRAWAL\OneDrive\Desktop\SemVI\Dev\proj\k8s\namespace.yml
-kubectl apply -f C:\Users\KRISH AGRAWAL\OneDrive\Desktop\SemVI\Dev\proj\k8s\configmap.yml
-kubectl apply -f C:\Users\KRISH AGRAWAL\OneDrive\Desktop\SemVI\Dev\proj\k8s\backend-deployment.yml
-kubectl apply -f C:\Users\KRISH AGRAWAL\OneDrive\Desktop\SemVI\Dev\proj\k8s\frontend-deployment.yml
+kubectl apply -f k8s/namespace.yml
+kubectl apply -f k8s/configmap.yml
+kubectl apply -f k8s/backend-deployment.yml
+kubectl apply -f k8s/frontend-deployment.yml
 echo Done!
 echo.
+
+docker ps
+kubectl get pods -n ecommerce
 
 echo ========================================
 echo   All services started successfully!

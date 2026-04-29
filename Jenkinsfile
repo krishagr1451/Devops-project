@@ -14,7 +14,7 @@ pipeline {
                 withSonarQubeEnv('sonarqube') {
                     sh '''
                         # Install Node.js if not available
-                        which node || (curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && apt-get install -y nodejs)
+                        which node || (curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo bash - && sudo apt-get install -y nodejs)
                     '''
                     sh "${tool 'sonar-scanner'}/bin/sonar-scanner"
                 }

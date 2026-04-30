@@ -246,3 +246,6 @@ kubectl apply -f k8s/frontend-deployment.yml
 ## 📄 License
 
 This project is licensed under the GPL-3.0 License.demo 
+
+
+krish

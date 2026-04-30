@@ -25,14 +25,13 @@ pipeline {
         }
 
         stage('Deploy') {
-    steps {
-        echo 'Deploying...'
-        sh 'docker-compose down'
-        sh 'docker rm -f ecommerce-backend ecommerce-frontend || true'
-        sh 'docker-compose up -d'
-    }
-}
-}
+            steps {
+                echo 'Deploying...'
+                sh 'docker-compose down'
+                sh 'docker rm -f ecommerce-backend ecommerce-frontend || true'
+                sh 'docker-compose up -d'
+            }
+        }
     }
 
     post {
